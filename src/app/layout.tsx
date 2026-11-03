@@ -27,7 +27,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const lang = content.identity.defaultLanguage;
   const title = pageTitle(content);
   const description = pickText(content.identity.description, lang);
-  const image = absoluteUrl(content.hero.image.src);
+  // Dedicated 1200×630 landscape share card (1.91:1, ~30KB). The hero visual is
+  // a vertical 1086×1448 PNG (~1.9MB) which social platforms crop heavily for
+  // summary_large_image and which some crawlers refuse to fetch at all — ship a
+  // purpose-built card instead (see issue #77).
+  const image = absoluteUrl("/images/og-card.png");
   return {
     metadataBase: siteUrl(),
     title: { default: title, template: `%s — ${pickText(content.identity.siteName, lang) || content.identity.name}` },
@@ -47,9 +51,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       url: "/",
       locale: lang === "zh" ? "zh_CN" : "en_US",
-      images: [{ url: image, alt: pickText(content.hero.image.alt, lang) }],
+      images: [{ url: image, width: 1200, height: 630, alt: pickText(content.identity.description, lang) }],
     },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [{ url: image, width: 1200, height: 630 }] },
     robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large" } },
   };
 }

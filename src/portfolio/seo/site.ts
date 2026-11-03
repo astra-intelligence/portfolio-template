@@ -65,6 +65,18 @@ export function pageTitle(content: PortfolioContent) {
   return site && site !== title ? `${title} — ${site}` : title;
 }
 
+/**
+ * schema.org dates must be ISO 8601 (`YYYY-MM-DD` or `YYYY`). Content stores
+ * repo-era dates as `YYYY.MM.DD` (e.g. `2026.04.22`) for display; normalize
+ * those to ISO before they reach JSON-LD so rich results don't drop the field.
+ */
+export function isoDate(value: string): string {
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (iso || /^\d{4}$/.test(value)) return value;
+  const dotted = value.match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
+  return dotted ? `${dotted[1]}-${dotted[2]}-${dotted[3]}` : value;
+}
+
 /** schema.org graph (Person + WebSite + one CreativeWork per project). */
 export function jsonLd(content: PortfolioContent) {
   const lang = content.identity.defaultLanguage;
@@ -88,7 +100,10 @@ export function jsonLd(content: PortfolioContent) {
         name: content.identity.name,
         description,
         url: `${origin}/`,
-        image: absoluteUrl(content.hero.image.src),
+        // A real portrait photo (~50KB) — not the 1.9MB vertical hero visual
+        // (see issue #77): Person.image describes the person, and a heavyweight
+        // decorative asset wastes crawler budget.
+        image: absoluteUrl(content.intro.portrait.src),
         email: content.contact.email ? `mailto:${content.contact.email}` : undefined,
         sameAs,
       },
@@ -101,7 +116,7 @@ export function jsonLd(content: PortfolioContent) {
           description: pickText(work.description, lang),
           image: workImage ? absoluteUrl(workImage) : undefined,
           url: `${origin}/works/${work.id}/`,
-          dateCreated: work.year,
+          dateCreated: isoDate(work.year),
           creator: { "@id": `${origin}/#person` },
         };
       }),

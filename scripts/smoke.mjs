@@ -221,7 +221,7 @@ try {
   const shareUrls = new Set();
   let metaMissingPages = 0;
   for (const pathname of paths) {
-    const relative = pathname.slice(BASE_PATH.length).replace(/^\//, "");
+    const relative = pathname.slice(BASE_PATH.length).replace(/^\/$/, "");
     const candidate = path.join(OUT, relative);
     const file = !existsSync(candidate) || statSync(candidate).isDirectory() ? path.join(candidate, "index.html") : candidate;
     if (!existsSync(file)) continue;
@@ -257,6 +257,38 @@ try {
     }
   }
   check("every crawlable page emits og:image and twitter:image", metaMissingPages === 0, `${paths.length} pages`);
+
+  // Issue #77: the share card must be a purpose-built 1.91:1 landscape image,
+  // not a heavy vertical hero PNG that platforms crop (and crawlers may refuse).
+  // Home og:image -> /images/og-card.png, whose exported PNG is 1200x630 and
+  // comfortably under 200KB. Per-page cards fall back to the same card.
+  const homeFile = existsSync(path.join(OUT, "index.html"))
+    ? path.join(OUT, "index.html")
+    : path.join(OUT, BASE_PATH.slice(1), "index.html");
+  try {
+    const homeHtml = readFileSync(homeFile, "utf8");
+    const ogImage = homeHtml.match(/<meta\b[^>]*property="og:image"[^>]*content="([^"]+)"/i)?.[1];
+    if (!ogImage) {
+      failures.push("home og:image missing");
+    } else {
+      shareUrls.add(ogImage);
+      const ogPath = ogImage.replace(/^https?:\/\/[^/]+/, "");
+      const ogRel = ogPath.slice(BASE_PATH.length).replace(/^\//, "");
+      const ogFile = path.join(OUT, ogRel);
+      if (!existsSync(ogFile)) {
+        failures.push(`home og:image ${ogImage} not exported`);
+      } else if (ogFile.endsWith(".png")) {
+        const raw = readFileSync(ogFile);
+        const [w, h] = [raw.readUInt32BE(16), raw.readUInt32BE(20)];
+        const kb = raw.length / 1024;
+        if (w !== 1200 || h !== 630)
+          failures.push(`home og:image is ${w}x${h}, expected 1200x630 (1.91:1 for summary_large_image)`);
+        if (kb > 200) failures.push(`home og:image is ${kb.toFixed(0)}KB (>200KB crawler budget)`);
+      }
+    }
+  } catch (err) {
+    failures.push(`home og:image check failed (${err.message})`);
+  }
 
   let badShare = 0;
   for (const rawUrl of shareUrls) {

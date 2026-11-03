@@ -28,6 +28,17 @@
         }
       ]
     },
+    "/images/og-card.png": {
+      "width": 1200,
+      "height": 630,
+      "quality": 78,
+      "variants": [
+        {
+          "type": "image/webp",
+          "srcSet": "/images/opt/og-card-480.fdb94b2f.webp 480w, /images/opt/og-card-800.fdb94b2f.webp 800w, /images/opt/og-card-1200.fdb94b2f.webp 1200w"
+        }
+      ]
+    },
     "/images/profilephoto.jpg": {
       "width": 1000,
       "height": 1400,
